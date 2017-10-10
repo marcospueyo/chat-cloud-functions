@@ -1,7 +1,5 @@
 const functions = require('firebase-functions');
-
 const moment = require('moment');
-
 
 // The Firebase Admin SDK to access the Firebase Realtime Database. 
 const admin = require('firebase-admin');
@@ -30,6 +28,6 @@ exports.addMessage = functions.https.onRequest((req, res) => {
 });
 
 function currentDate() {
-	var currentDate = moment().utc().format("YYYY-MM-DDTHH:mm:ss.SSSZZ");
+	var currentDate = moment().utc().format("YYYY-MM-DDTHH:mm:ssZZ");
 	return currentDate;
 }
