@@ -127,6 +127,13 @@ exports.addStay = functions.https.onRequest((req, res) => {
         })
         .then(function (result) {
             console.log(result);
+            return setGuestRelatedRoom(user.id, owner.id, room.id);
+        }, function (err) {
+            console.log(err);
+            res.status(500).send('Write ERROR');
+        })
+        .then(function (result) {
+            console.log(result);
             res.status(201).send({message: 'Stay created', room:room});
         }, function (err) {
             console.log(err);
@@ -138,11 +145,21 @@ exports.addStay = functions.https.onRequest((req, res) => {
     }
     });
 
+exports.getRooms = functions.https.onRequest((req, res) => {
+        getRoomsForOwner(req.body.owner_id).then(function (result) {
+    console.log('testmethod result ' + result);
+    res.status(200).send(result);
+}, function (err) {
+    console.log(err);
+    res.status(400).send('error');
+});
+
+});
+
 exports.testmethod = functions.https.onRequest((req, res) => {
-    var room = getRoom(req.body.room_id);
-    room.then(function (result) {
-        console.log(result);
-        res.status(200).send('ok');
+    getRoomsForOwner(req.body.owner_id).then(function (result) {
+        console.log('testmethod result ' + result);
+        res.status(200).send(result);
     }, function (err) {
         console.log(err);
         res.status(400).send('error');
@@ -206,6 +223,39 @@ function currentDate() {
 	var currentDate = moment().utc().format("YYYY-MM-DDTHH:mm:ssZZ");
 	return currentDate;
 }
+
+function getRoomsForOwner(ownerID) {
+    var promise = new Promise(function (resolve, reject) {
+        var ref = getRefForOwnerID(ownerID).child('guests');
+        var rooms = [];
+        var fetchedRooms = [];
+        ref.once('value', function (snap) {
+            snap.forEach(function (child) {
+                rooms.push(child.val());
+            });
+            getSetOfRooms(rooms, fetchedRooms).then(() => resolve(fetchedRooms));
+        }, function (err) {
+            console.log('The read failed: ' + err.code);
+            reject(Error(err.code));
+        });
+    });
+    return promise;
+}
+
+function getSetOfRooms(arr, fetchedRooms) {
+    return arr.reduce((promise, item) => {
+        return promise.then((result) => {
+            console.log('item ' + item);
+            return getRoom(item).then(result => fetchedRooms.push(result));
+        }).catch(console.error);
+        }, Promise.resolve());
+}
+
+function exampleFunc(item, cb) {
+    console.log('done with', item);
+    return cb(item);
+}
+
 
 function getRoom(id) {
     var promise = new Promise(function (resolve, reject) {
@@ -279,7 +329,7 @@ function setRoom(room) {
 function addGuestToOwner(ownerID, guestID) {
     var promise = new Promise(function (resolve, reject) {
         var guestlistRef = getRefForOwnerID(ownerID).child('guests').child(guestID);
-        guestlistRef.set(guestID, function (error) {
+        guestlistRef.set('__UNDEFINED__', function (error) {
             if (error) {
                 reject(Error(error.code));
             }
@@ -319,6 +369,21 @@ function setUserRelatedRoom(userID, roomID) {
                 resolve('ok');
             }
         });
+    });
+    return promise;
+}
+
+function setGuestRelatedRoom(guestID, ownerID, roomID) {
+    var promise = new Promise(function (resolve, reject) {
+        var ref = getRefForOwnerID(ownerID).child('guests').child(guestID);
+        ref.set(roomID, function (error) {
+            if (error) {
+                reject(Error(error.code));
+            }
+            else {
+                resolve('ok');
+            }
+        })
     });
     return promise;
 }
