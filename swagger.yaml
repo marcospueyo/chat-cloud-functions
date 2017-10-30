@@ -1,0 +1,158 @@
+swagger: '2.0'
+info:
+  description: >-
+    This is a sample server Petstore server.  You can find out more about    
+    Swagger at [http://swagger.io](http://swagger.io) or on [irc.freenode.net,
+    #swagger](http://swagger.io/irc/).      For this sample, you can use the api
+    key `special-key` to test the authorization     filters.
+  version: 1.0.0
+  title: Swagger Petstore
+  termsOfService: 'http://swagger.io/terms/'
+  contact:
+    email: apiteam@swagger.io
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+host: petstore.swagger.io
+basePath: /v2
+tags:
+  - name: user
+    description: Operations about user
+    externalDocs:
+      description: Find out more about our store
+      url: 'http://swagger.io'
+schemes:
+  - http
+paths:
+  /addOwner:
+    put:
+      tags:
+        - user
+      summary: Añadir gestor
+      description: ''
+      operationId: addOwner
+      consumes:
+        - application/json
+        - application/xml
+      produces:
+        - application/xml
+        - application/json
+      parameters:
+        - in: body
+          name: id
+          description: Firebase UID del gestor
+          required: true
+        - in: body
+          name: email
+          description: Email del gestor
+          required: true
+        - in: body
+          name: phone
+          description: Teléfono del gestor
+          required: true
+        - in: body
+          name: display_name
+          description: Nombre del gestor
+          required: true
+        - in: body
+          name: property_name
+          description: Nombre del apartamento
+          required: true
+      responses:
+        '201':
+          description: Gestor creado
+        '500':
+          description: Error al crear
+  /addUser:
+    put:
+      tags:
+        - user
+      summary: Añadir usuario
+      description: ''
+      operationId: addUser
+      consumes:
+        - application/json
+        - application/xml
+      produces:
+        - application/xml
+        - application/json
+      parameters:
+        - name: id
+          in: body
+          description: Firebase UID del usuario
+          required: true
+        - name: email
+          in: body
+          description: Email del usuario
+          required: true
+        - in: body
+          name: phone
+          description: Teléfono del usuario
+          required: true
+        - in: body
+          name: display_name
+          description: Nombre del usuario
+          required: true
+      responses:
+        '201':
+          description: Usuario creado
+        '500':
+          description: Error al crear
+  /addStay:
+    put:
+      tags:
+        - user
+      summary: Añadir estancia
+      description: ''
+      operationId: addStay
+      consumes:
+        - application/json
+        - application/xml
+      produces:
+        - application/xml
+        - application/json
+      parameters:
+        - in: body
+          name: id_user
+          description: Firebase UID del usuario
+          required: true
+        - in: body
+          name: id_owner
+          description: Firebase UID del gestor
+          required: true
+        - in: body
+          name: start_date
+          description: Fecha de inicio de la estancia. ISO8601
+          required: true
+        - in: body
+          name: end_date
+          description: Fecha de fin de la estancia. ISO8601
+          required: true
+      responses:
+        '201':
+          description: Estancia creada
+        '500':
+          description: Error al crear
+  /getRooms:
+    put:
+      tags:
+        - rooms
+      summary: Recibir las salas de chat de un propietario/gestor con sus inquilinos
+      description: ''
+      operationId: getRooms
+      consumes:
+        - application/json
+        - application/xml
+      produces:
+        - application/xml
+        - application/json
+      parameters:
+        - in: body
+          name: owner_id
+          description: Firebase UID del gestor
+          required: true
+      responses:
+        '200':
+          description: Conjunto de salas
+        '400':
+          description: ID incorrecto
