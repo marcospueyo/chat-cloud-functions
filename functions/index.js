@@ -13,6 +13,9 @@ var events = require('events');
 const uuid = require('uuid');
 
 exports.addMessage = functions.https.onRequest((req, res) => {
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
     cors(req, res, () => {
         var paramsOK = req.body.text && req.body.room_id && req.body.sender_id
             && req.body.id;
@@ -42,6 +45,9 @@ exports.addMessage = functions.https.onRequest((req, res) => {
 });
 
 exports.addOwner = functions.https.onRequest((req, res) => {
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
     cors(req, res, () => {
         var paramsOK = req.body.id && req.body.email && req.body.phone
            && req.body.display_name && req.body.property_name;
@@ -63,6 +69,9 @@ exports.addOwner = functions.https.onRequest((req, res) => {
 });
 
 exports.addUser = functions.https.onRequest((req, res) => {
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
     cors(req, res, () => {
         var paramsOK = req.body.id && req.body.email && req.body.display_name
             && req.body.phone;
@@ -84,6 +93,9 @@ exports.addUser = functions.https.onRequest((req, res) => {
 });
 
 exports.addStay = functions.https.onRequest((req, res) => {
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
     cors(req, res, () => {
         /*
         * Add user_id to owner's guestlist
@@ -156,6 +168,9 @@ exports.addStay = functions.https.onRequest((req, res) => {
 });
 
 exports.getRooms = functions.https.onRequest((req, res) => {
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
     cors(req, res, () => {
         getRoomsForOwner(req.body.owner_id).then(function (result) {
             console.log('testmethod result ' + result);
@@ -168,6 +183,9 @@ exports.getRooms = functions.https.onRequest((req, res) => {
 });
 
 exports.testmethod = functions.https.onRequest((req, res) => {
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
     cors(req, res, () => {
         getRoomsForOwner(req.body.owner_id).then(function (result) {
             console.log('testmethod result ' + result);
