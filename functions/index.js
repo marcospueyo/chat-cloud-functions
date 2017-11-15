@@ -1,5 +1,8 @@
+'use strict';
+
 const functions = require('firebase-functions');
 const moment = require('moment');
+const cors = require('cors')({origin: true});
 
 // The Firebase Admin SDK to access the Firebase Realtime Database. 
 const admin = require('firebase-admin');
@@ -10,150 +13,173 @@ var events = require('events');
 const uuid = require('uuid');
 
 exports.addMessage = functions.https.onRequest((req, res) => {
-    var paramsOK = req.body.text && req.body.room_id && req.body.sender_id
-        && req.body.id;
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
+    cors(req, res, () => {
+        var paramsOK = req.body.text && req.body.room_id && req.body.sender_id
+            && req.body.id;
 
-    if (paramsOK) {
-        getUser(req.body.sender_id)
-        .then(function (user) {
-            var message = createMessage(req.body.id, req.body.text, currentDate(),
-                req.body.room_id, user.id, user.name);
-            return addMessage(message);
-        }, function (err) {
-            console.log(err);
-            res.status(500).send('Write ERROR');
-        })
-        .then(function (result) {
-            console.log('Message saved successfully');
-            res.status(201).send('Message saved successfully');
-        }, function (err) {
-            console.log(err);
-            res.status(500).send('Write ERROR');
-        });
-    }
-    else {
-        res.status(400).send('Parameter ERROR');
-    }
+        if (paramsOK) {
+            getUser(req.body.sender_id)
+            .then(function (user) {
+                var message = createMessage(req.body.id, req.body.text, currentDate(),
+                    req.body.room_id, user.id, user.name);
+                return addMessage(message);
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            })
+            .then(function (result) {
+                console.log('Message saved successfully');
+                res.status(201).send('Message saved successfully');
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            });
+        }
+        else {
+            res.status(400).send('Parameter ERROR');
+        }
+    });
 });
 
 exports.addOwner = functions.https.onRequest((req, res) => {
-   var paramsOK = req.body.id && req.body.email && req.body.phone
-       && req.body.display_name && req.body.property_name;
-   if (paramsOK) {
-       var owner = createOwner(req.body.id, req.body.email, req.body.phone,
-           req.body.display_name, req.body.property_name);
-        setOwner(owner).then(function (result) {
-            console.log(result);
-            res.status(201).send('Owner created');
-        }, function (err) {
-            console.log(err);
-            res.status(500).send('Write ERROR');
-        });
-   }
-   else {
-       res.status(400).send('Parameter ERROR');
-   }
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
+    cors(req, res, () => {
+        var paramsOK = req.body.id && req.body.email && req.body.phone
+           && req.body.display_name && req.body.property_name;
+        if (paramsOK) {
+            var owner = createOwner(req.body.id, req.body.email, req.body.phone,
+               req.body.display_name, req.body.property_name);
+            setOwner(owner).then(function (result) {
+                console.log(result);
+                res.status(201).send('Owner created');
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            });
+        }
+        else {
+            res.status(400).send('Parameter ERROR');
+        }
+    });
 });
 
 exports.addUser = functions.https.onRequest((req, res) => {
-    var paramsOK = req.body.id && req.body.email && req.body.display_name
-        && req.body.phone;
-    if (paramsOK) {
-        var user = createrUser(req.body.id, req.body.display_name,
-            req.body.phone, req.body.email);
-        setUser(user).then(function (result) {
-            console.log(result);
-            res.status(201).send('User created');
-        }, function (err) {
-            console.log(err);
-            res.status(500).send('Write ERROR');
-        });
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
     }
-    else {
-        res.status(400).send('Parameter ERROR');
-    }
-
+    cors(req, res, () => {
+        var paramsOK = req.body.id && req.body.email && req.body.display_name
+            && req.body.phone;
+        if (paramsOK) {
+            var user = createrUser(req.body.id, req.body.display_name,
+                req.body.phone, req.body.email);
+            setUser(user).then(function (result) {
+                console.log(result);
+                res.status(201).send('User created');
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            });
+        }
+        else {
+            res.status(400).send('Parameter ERROR');
+        }
+    });
 });
 
 exports.addStay = functions.https.onRequest((req, res) => {
-    /*
-    * Add user_id to owner's guestlist
-    * Update user start_date and end_date attrs
-    * Create new room
-     */
-    var paramsOK = req.body.id_user && req.body.id_owner
-        && req.body.start_date && req.body.end_date;
-    var owner;
-    var user;
-    var room;
-    if (paramsOK) {
-        getOwner(req.body.id_owner)
-        .then(function (result) {
-            owner = result;
-            return getUser(req.body.id_user);
-        }, function (err) {
-            console.log(err);
-            res.status(500).send('Write ERROR');
-        })
-        .then(function (result) {
-            user = result;
-            return addGuestToOwner(owner.id, user.id);
-        }, function (err) {
-            console.log(err);
-            res.status(500).send('Write ERROR');
-        })
-        .then(function (result) {
-            console.log(result);
-            return setUserStayInterval(user.id, req.body.start_date,
-                req.body.end_date);
-        }, function (err) {
-            console.log(err);
-            res.status(500).send('Write ERROR');
-        })
-        .then(function (result) {
-            console.log(result);
-            room = createRoom(req.body.start_date, req.body.end_date, user, owner);
-            return setRoom(room);
-        }, function (err) {
-            console.log(err);
-            res.status(500).send('Write ERROR');
-        })
-        .then(function (result) {
-            console.log(result);
-            return setUserRelatedRoom(user.id, room.id);
-        }, function (err) {
-            console.log(err);
-            res.status(500).send('Write ERROR');
-        })
-        .then(function (result) {
-            console.log(result);
-            return setGuestRelatedRoom(user.id, owner.id, room.id);
-        }, function (err) {
-            console.log(err);
-            res.status(500).send('Write ERROR');
-        })
-        .then(function (result) {
-            console.log(result);
-            res.status(201).send({message: 'Stay created', room:room});
-        }, function (err) {
-            console.log(err);
-            res.status(500).send('Write ERROR');
-        });
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
     }
-    else {
-        res.status(400).send('Parameter ERROR');
-    }
+    cors(req, res, () => {
+        /*
+        * Add user_id to owner's guestlist
+        * Update user start_date and end_date attrs
+        * Create new room
+         */
+        var paramsOK = req.body.id_user && req.body.id_owner
+            && req.body.start_date && req.body.end_date;
+        var owner;
+        var user;
+        var room;
+        if (paramsOK) {
+            getOwner(req.body.id_owner)
+            .then(function (result) {
+                owner = result;
+                return getUser(req.body.id_user);
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            })
+            .then(function (result) {
+                user = result;
+                return addGuestToOwner(owner.id, user.id);
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            })
+            .then(function (result) {
+                console.log(result);
+                return setUserStayInterval(user.id, req.body.start_date,
+                    req.body.end_date);
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            })
+            .then(function (result) {
+                console.log(result);
+                room = createRoom(req.body.start_date, req.body.end_date, user, owner);
+                return setRoom(room);
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            })
+            .then(function (result) {
+                console.log(result);
+                return setUserRelatedRoom(user.id, room.id);
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            })
+            .then(function (result) {
+                console.log(result);
+                return setGuestRelatedRoom(user.id, owner.id, room.id);
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            })
+            .then(function (result) {
+                console.log(result);
+                res.status(201).send({message: 'Stay created', room:room});
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            });
+        }
+        else {
+            res.status(400).send('Parameter ERROR');
+        }
     });
-
-exports.getRooms = functions.https.onRequest((req, res) => {
-        getRoomsForOwner(req.body.owner_id).then(function (result) {
-    console.log('testmethod result ' + result);
-    res.status(200).send(result);
-}, function (err) {
-    console.log(err);
-    res.status(400).send('error');
 });
 
+exports.getRooms = functions.https.onRequest((req, res) => {
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
+    cors(req, res, () => {
+        getRoomsForOwner(req.body.owner_id).then(function (result) {
+            console.log('testmethod result ' + result);
+            res.status(200).send(result);
+        }, function (err) {
+            console.log(err);
+            res.status(400).send('error');
+        });
+    });
 });
 
 exports.getRoomForGuest = functions.https.onRequest((req, res) => {
@@ -161,14 +187,18 @@ exports.getRoomForGuest = functions.https.onRequest((req, res) => {
     });
 
 exports.testmethod = functions.https.onRequest((req, res) => {
-    getRoomsForOwner(req.body.owner_id).then(function (result) {
-        console.log('testmethod result ' + result);
-        res.status(200).send(result);
-    }, function (err) {
-        console.log(err);
-        res.status(400).send('error');
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
+    cors(req, res, () => {
+        getRoomsForOwner(req.body.owner_id).then(function (result) {
+            console.log('testmethod result ' + result);
+            res.status(200).send(result);
+        }, function (err) {
+            console.log(err);
+            res.status(400).send('error');
+        });
     });
-
 });
 
 function createOwner(id, email, phone, name, property_name) {
