@@ -182,9 +182,28 @@ exports.getRooms = functions.https.onRequest((req, res) => {
     });
 });
 
-exports.getRoomForGuest = functions.https.onRequest((req, res) => {
-
+exports.getGuestRoom = functions.https.onRequest((req, res) => {
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
+    cors(req, res, () => {
+        var roomID;
+        getRoomForGuest(req.body.guest_id).then(function (result) {
+            console.log('getRoomForGuest result ' + result);
+            roomID = result;
+            return getRoom(roomID);
+        }, function (err) {
+            console.log(err);
+            res.status(400).send('error');
+        }).then(function (result) {
+            console.log("getRoom result " + result);
+            res.status(200).send(result);
+        }, function (err) {
+            console.log(err);
+            res.status(400).send('error');
+        });
     });
+});
 
 exports.testmethod = functions.https.onRequest((req, res) => {
     if (req.method === 'PUT') {
@@ -259,15 +278,16 @@ function currentDate() {
 }
 
 function getRoomForGuest(guestID) {
-    var promise = new Promise(function(resulve, reject) {
+    var promise = new Promise(function(resolve, reject) {
         var ref = getRefForUserID(guestID).child('related_room_id');
+        var roomID;
         ref.once('value', function (snap) {
-            return getRoom(snap.val());
+            roomID = snap.val();
+            resolve(roomID);
         }, function (err) {
             console.log('The read failed: ' + err.code);
             reject(Error(err.code));
-        })
-
+        });
     });
     return promise;
 }
