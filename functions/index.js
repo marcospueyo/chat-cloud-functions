@@ -156,6 +156,10 @@ exports.getRooms = functions.https.onRequest((req, res) => {
 
 });
 
+exports.getRoomForGuest = functions.https.onRequest((req, res) => {
+
+    });
+
 exports.testmethod = functions.https.onRequest((req, res) => {
     getRoomsForOwner(req.body.owner_id).then(function (result) {
         console.log('testmethod result ' + result);
@@ -222,6 +226,20 @@ function createMessage(id, text, date, room_id, sender_id, sender_name) {
 function currentDate() {
 	var currentDate = moment().utc().format("YYYY-MM-DDTHH:mm:ssZZ");
 	return currentDate;
+}
+
+function getRoomForGuest(guestID) {
+    var promise = new Promise(function(resulve, reject) {
+        var ref = getRefForUserID(guestID).child('related_room_id');
+        ref.once('value', function (snap) {
+            return getRoom(snap.val());
+        }, function (err) {
+            console.log('The read failed: ' + err.code);
+            reject(Error(err.code));
+        })
+
+    });
+    return promise;
 }
 
 function getRoomsForOwner(ownerID) {
