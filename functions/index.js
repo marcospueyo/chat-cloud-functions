@@ -19,11 +19,11 @@ exports.addMessage = functions.https.onRequest((req, res) => {
     cors(req, res, () => {
         var paramsOK = req.body.text && req.body.room_id && req.body.sender_id
             && req.body.id;
-
+        var message;
         if (paramsOK) {
             getUser(req.body.sender_id)
             .then(function (user) {
-                var message = createMessage(req.body.id, req.body.text, currentDate(),
+                message = createMessage(req.body.id, req.body.text, currentDate(),
                     req.body.room_id, user.id, user.name);
                 return addMessage(message);
             }, function (err) {
@@ -32,6 +32,12 @@ exports.addMessage = functions.https.onRequest((req, res) => {
             })
             .then(function (result) {
                 console.log('Message saved successfully');
+                return updateRoom(message)
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            })
+            .then(function (result) {
                 res.status(201).send('Message saved successfully');
             }, function (err) {
                 console.log(err);
@@ -42,6 +48,22 @@ exports.addMessage = functions.https.onRequest((req, res) => {
             res.status(400).send('Parameter ERROR');
         }
     });
+});
+
+exports.updateMessageCount = functions.database.ref('/messages/{roomID}/{messageID}')
+    .onWrite(event => {
+        console.info('updateMessageCount', event.params.roomID);
+        const roomRef = getRefForRoomID(event.params.roomID).child('message_count');
+        return roomRef.transaction(current => {
+            if (event.data.exists() && !event.data.previous.exists()) {
+                return (current || 0) + 1;
+            }
+            else if (!event.data.exists() && event.data.previous.exists()) {
+                return (current || 0) - 1;
+            }
+            }).then(() => {
+            console.log('Message count updated.')
+        });
 });
 
 exports.addOwner = functions.https.onRequest((req, res) => {
@@ -338,6 +360,13 @@ function getRoom(id) {
     return promise;
 }
 
+function getMessageCountForRoom(id) {
+    var promise = new Promise(function (resolve, reject) {
+        var ref = getRefForRoomMessages(id);
+    });
+    return promise;
+}
+
 function getOwner(id) {
     var promise = new Promise(function (resolve, reject) {
         var ref = getRefForOwnerID(id);
@@ -390,6 +419,26 @@ function setRoom(room) {
                 resolve('ok');
             }
         });
+    });
+    return promise;
+}
+
+function updateRoom(message) {
+    //message_count: 0 + 1
+    var room = {
+        date_last_msg: currentDate(),
+        last_msg_str: message.text
+    };
+    var promise = new Promise(function (resolve, reject) {
+        var ref = getRefForRoomID(message.room_id);
+        ref.update(room, function (error) {
+            if (error) {
+                reject(Error(error.code));
+            }
+            else {
+                resolve('ok');
+            }
+        })
     });
     return promise;
 }
@@ -490,6 +539,10 @@ function getRefForMessage(roomID, messageID) {
     return admin.database().ref('/messages').child(roomID).child(messageID);
 }
 
+function getRefForMessageTable() {
+    return admin.database().ref('/messages');
+}
+
 function getRefForRoomID(roomID) {
     return admin.database().ref('/rooms').child(roomID);
 }
@@ -502,7 +555,6 @@ function getRefForUserID(id) {
     return admin.database().ref('/users').child(id);
 }
 
-function getRefForRoomID(id) {
-    return admin.database().ref('/rooms').child(id);
-
+function getRefForRoomMessages(roomID) {
+    return getRefForMessageTable().child(roomID);
 }
