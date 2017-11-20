@@ -195,7 +195,22 @@ exports.getRooms = functions.https.onRequest((req, res) => {
     }
     cors(req, res, () => {
         getRoomsForOwner(req.body.owner_id).then(function (result) {
-            console.log('testmethod result ' + result);
+            console.log('getRooms result ' + result);
+            res.status(200).send(result);
+        }, function (err) {
+            console.log(err);
+            res.status(400).send('error');
+        });
+    });
+});
+
+exports.getGuests = functions.https.onRequest((req, res) => {
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
+    cors(req, res, () => {
+        getGuestsForOwner(req.body.owner_id).then(function (result) {
+            console.log('getGuests result ' + result);
             res.status(200).send(result);
         }, function (err) {
             console.log(err);
@@ -314,6 +329,24 @@ function getRoomForGuest(guestID) {
     return promise;
 }
 
+function getGuestsForOwner(ownerID) {
+    var promise = new Promise(function (resolve, reject) {
+        var ref = getRefForOwnerID(ownerID).child('guests');
+        var guests = [];
+        var fetchedGuests = [];
+        ref.once('value', function (snap) {
+            snap.forEach(function (child) {
+                guests.push(child.key);
+            });
+            getSetOfGuests(guests, fetchedGuests).then(() => resolve(fetchedGuests));
+        }, function (err) {
+            console.log('The read failed: ' + err.code);
+            reject(Error(err.code));
+        });
+    });
+    return promise;
+}
+
 function getRoomsForOwner(ownerID) {
     var promise = new Promise(function (resolve, reject) {
         var ref = getRefForOwnerID(ownerID).child('guests');
@@ -338,6 +371,15 @@ function getSetOfRooms(arr, fetchedRooms) {
             console.log('item ' + item);
             return getRoom(item).then(result => fetchedRooms.push(result));
         }).catch(console.error);
+        }, Promise.resolve());
+}
+
+function getSetOfGuests(arr, fetchedGuests) {
+    return arr.reduce((promise, item) => {
+            return promise.then((result) => {
+                console.log('item ' + item);
+                return getUser(item).then(result => fetchedGuests.push(result));
+            }).catch(console.error);
         }, Promise.resolve());
 }
 
