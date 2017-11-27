@@ -38,7 +38,7 @@ exports.addMessage = functions.https.onRequest((req, res) => {
                 res.status(500).send('Write ERROR');
             })
             .then(function (result) {
-                res.status(201).send('Message saved successfully');
+                res.status(201).send({response: 'Message saved successfully'});
             }, function (err) {
                 console.log(err);
                 res.status(500).send('Write ERROR');
@@ -336,7 +336,7 @@ function getGuestsForOwner(ownerID) {
         var fetchedGuests = [];
         ref.once('value', function (snap) {
             snap.forEach(function (child) {
-                guests.push(child.key);
+                guests.push(child.key());
             });
             getSetOfGuests(guests, fetchedGuests).then(() => resolve(fetchedGuests));
         }, function (err) {
