@@ -336,7 +336,7 @@ function getGuestsForOwner(ownerID) {
         var fetchedGuests = [];
         ref.once('value', function (snap) {
             snap.forEach(function (child) {
-                guests.push(child.key());
+                guests.push(child.key);
             });
             getSetOfGuests(guests, fetchedGuests).then(() => resolve(fetchedGuests));
         }, function (err) {
