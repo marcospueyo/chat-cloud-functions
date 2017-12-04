@@ -36,8 +36,15 @@ exports.addMessage = functions.https.onRequest((req, res) => {
             }, function (err) {
                 console.log(err);
                 res.status(500).send('Write ERROR');
+            }).then(function (result) {
+                console.log(result);
+                return getRoomParticipants(req.body.room_id);
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
             })
             .then(function (result) {
+                console.log(result);
                 res.status(201).send({response: 'Message saved successfully'});
             }, function (err) {
                 console.log(err);
@@ -114,6 +121,29 @@ exports.addUser = functions.https.onRequest((req, res) => {
     });
 });
 
+exports.tokenRefresh = functions.https.onRequest((req, res) => {
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
+    cors(req, res, () => {
+       var paramsOK = req.body.id && req.body.token;
+       if (paramsOK) {
+           setUserToken(req.body.id, req.body.token)
+               .then(function (result) {
+               console.log(result);
+               res.status(200).send({message: 'Token saved'});
+           }, function (err) {
+                   console.log(err);
+                   res.status(500).send('Write ERROR');
+               });
+       }
+       else {
+           res.status(400).send('Parameter ERROR');
+       }
+    });
+
+});
+
 exports.addStay = functions.https.onRequest((req, res) => {
     if (req.method === 'PUT') {
         res.status(403).send('Forbidden!');
@@ -157,6 +187,20 @@ exports.addStay = functions.https.onRequest((req, res) => {
                 console.log(result);
                 room = createRoom(req.body.start_date, req.body.end_date, user, owner);
                 return setRoom(room);
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            })
+            .then(function (result) {
+                console.log(result);
+                return addParticipantToRoom(room.id, user.id);
+            }, function (err) {
+                console.log(err);
+                res.status(500).send('Write ERROR');
+            })
+            .then(function (result) {
+                console.log(result);
+                return addParticipantToRoom(room.id, owner.id);
             }, function (err) {
                 console.log(err);
                 res.status(500).send('Write ERROR');
@@ -347,6 +391,31 @@ function getGuestsForOwner(ownerID) {
     return promise;
 }
 
+function getRoomParticipants(roomID) {
+    var promise = new Promise(function (resolve, reject) {
+        var ref = getRefForRoomID(roomID).child('participants');
+        var participants = [];
+        ref.once('value', function (snap) {
+            snap.forEach(function (child) {
+               participants.push(child.key);
+            });
+            resolve(participants);
+        }, function (err) {
+            console.log('The read failed: ' + err.code);
+            reject(Error(err.code));
+        });
+    });
+    return promise;
+}
+
+function notifyParticipants(senderID, participantArray) {
+    var promise = new Promise(function (resolve, reject) {
+        // participantArray.forEach
+        resolve('ok');
+    });
+    return promise;
+}
+
 function getRoomsForOwner(ownerID) {
     var promise = new Promise(function (resolve, reject) {
         var ref = getRefForOwnerID(ownerID).child('guests');
@@ -465,6 +534,21 @@ function setRoom(room) {
     return promise;
 }
 
+function addParticipantToRoom(roomID, participantID) {
+    var promise = new Promise(function (resolve, reject) {
+        var ref = getRefForRoomID(roomID).child('participants').child(participantID);
+        ref.set({participationID: '__UNDEFINED__', userID: participantID}, function (error) {
+            if (error) {
+                reject(Error(error.code));
+            }
+            else {
+                resolve('ok');
+            }
+        });
+    });
+    return promise;
+}
+
 function updateRoom(message) {
     //message_count: 0 + 1
     var room = {
@@ -557,6 +641,21 @@ function setUser(user) {
             else {
                 resolve('ok');
             }
+        });
+    });
+    return promise;
+}
+
+function setUserToken(id, token) {
+    var promise = new Promise(function (resolve, reject) {
+        var ref = getRefForUserID(id).child('token');
+        ref.set(token, function (error) {
+           if (error) {
+               reject(Error(error.code));
+           }
+           else {
+               resolve('ok');
+           }
         });
     });
     return promise;
