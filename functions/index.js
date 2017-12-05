@@ -36,12 +36,6 @@ exports.addMessage = functions.https.onRequest((req, res) => {
             }, function (err) {
                 console.log(err);
                 res.status(500).send('Write ERROR');
-            }).then(function (result) {
-                console.log(result);
-                return getRoomParticipants(req.body.room_id);
-            }, function (err) {
-                console.log(err);
-                res.status(500).send('Write ERROR');
             })
             .then(function (result) {
                 console.log(result);
@@ -59,6 +53,10 @@ exports.addMessage = functions.https.onRequest((req, res) => {
 
 exports.updateMessageCount = functions.database.ref('/messages/{roomID}/{messageID}')
     .onWrite(event => {
+        var roomID = event.params.roomID;
+        const message = event.data.val();
+        const senderID = message.sender_id;
+        var room;
         console.info('updateMessageCount', event.params.roomID);
         const roomRef = getRefForRoomID(event.params.roomID).child('message_count');
         return roomRef.transaction(current => {
@@ -68,9 +66,25 @@ exports.updateMessageCount = functions.database.ref('/messages/{roomID}/{message
             else if (!event.data.exists() && event.data.previous.exists()) {
                 return (current || 0) - 1;
             }
-            }).then(() => {
-            console.log('Message count updated.')
-        });
+            })
+            .then(() => {
+                return getRoom(roomID);
+            }).then(function (result) {
+                room = result;
+                return getRoomParticipants(roomID);
+            }, function (err) {
+                console.log(err);
+            })
+            .then(function (result) {
+                console.log(result);
+                return notifyParticipants(senderID, result, message, room);
+            })
+            .then(function (result) {
+                console.log(result);
+                console.log('Message count updated.')
+            }, function (err) {
+                console.log(err);
+            });
 });
 
 exports.addOwner = functions.https.onRequest((req, res) => {
@@ -291,8 +305,26 @@ exports.testmethod = functions.https.onRequest((req, res) => {
         res.status(403).send('Forbidden!');
     }
     cors(req, res, () => {
-        getRoomsForOwner(req.body.owner_id).then(function (result) {
-            console.log('testmethod result ' + result);
+        const roomID = '807048e1-2ae7-4015-bcec-abfc509291f2';
+        const senderID = 'zwe85qHCEhY0PLaRIb6RtWzmeor2';
+        const message = createMessage('dfhdih', 'test msg', '2017-12-01T10:12:37+0000', roomID, senderID, 'test sender name');
+        var room;
+        getRoom(roomID)
+        .then(function (result) {
+            room = result;
+            return getRoomParticipants(roomID);
+        }, function (err) {
+            console.log(err);
+            res.status(400).send('error');
+        })
+        .then(function (result) {
+            console.log(result);
+            return notifyParticipants(senderID, result, message, room);
+        }, function (err) {
+            console.log(err);
+            res.status(400).send('error');
+        }).then(function (result) {
+            console.log(result);
             res.status(200).send(result);
         }, function (err) {
             console.log(err);
@@ -408,12 +440,48 @@ function getRoomParticipants(roomID) {
     return promise;
 }
 
-function notifyParticipants(senderID, participantArray) {
+function notifyParticipants(senderID, participantIDArray, message, room) {
     var promise = new Promise(function (resolve, reject) {
         // participantArray.forEach
-        resolve('ok');
+        var users = [];
+        getSetOfGuests(participantIDArray, users)
+            .then(function () {
+                users.forEach(function (item) {
+                    if (item.hasOwnProperty('token') && item.id != senderID) {
+                        notifySingleUser(item.token, message, room);
+                    }
+                });
+                resolve('ok');
+            });
+
     });
     return promise;
+}
+
+function notifySingleUser(token, message, room) {
+    console.log('Notify token ' + token);
+
+    var payload = {
+        notification: {
+            title: "Nuevo mensaje",
+            body: message.sender_name + ": " + message.text
+        },
+        data: {
+            room_id: room.id
+        }
+    };
+
+    var options = {
+        priority: "high",
+        timeToLive: 60 * 60 * 24
+    };
+
+    admin.messaging().sendToDevice(token, payload, options)
+    .then(function (response) {
+        console.log("Successfully sent message:", response);
+    }).catch(function(error) {
+        console.log("Error sending message:", error);
+    });
 }
 
 function getRoomsForOwner(ownerID) {
@@ -451,6 +519,15 @@ function getSetOfGuests(arr, fetchedGuests) {
             }).catch(console.error);
         }, Promise.resolve());
 }
+
+// function getSetOfTokens(participantArray, fetchedTokens) {
+//     return arr.reduce((promise, item) => {
+//         return promise.then((result) => {
+//             console.log('item ' + item);
+//             return getUser(item).then(result => fetchedTokens.push(result.token));
+//         })
+//         }, Promise.resolve());
+// }
 
 function exampleFunc(item, cb) {
     console.log('done with', item);
