@@ -462,12 +462,15 @@ function notifySingleUser(token, message, room) {
     console.log('Notify token ' + token);
 
     var payload = {
-        notification: {
+        /*notification: {
             title: "Nuevo mensaje",
             body: message.sender_name + ": " + message.text
-        },
+        },*/
         data: {
-            room_id: room.id
+            room_id: room.id,
+            property_name: room.property_name,
+            sender_name: message.sender_name,
+            text: message.text
         }
     };
 
