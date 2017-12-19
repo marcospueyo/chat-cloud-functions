@@ -87,6 +87,39 @@ exports.updateMessageCount = functions.database.ref('/messages/{roomID}/{message
             });
 });
 
+exports.updateReadCount = functions.https.onRequest((req, res) => {
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
+    cors(req, res, () => {
+        var paramsOk = req.body.user_id && req.body.room_id && req.body.count;
+        if (paramsOk) {
+            getUser(req.body.user_id)
+            .then(result => {
+                return getRoom(req.body.room_id);
+            }, error => {
+                console.log(error);
+                res.status(500).send('User doesn\'t exist ERROR');
+            })
+            .then(result => {
+                return setReadCount(req.body.room_id, req.body.user_id, req.body.count);
+            }, error => {
+                console.log(error);
+                res.status(500).send('Room doesn\'t exist ERROR');
+            })
+            .then(result => {
+                console.log(result);
+                res.status(201).send({response: 'Read count updated successfully'});
+            }, error => {
+                console.log(error);
+                res.status(500).send('Write ERROR');
+            });
+        } else {
+            res.status(400).send('Parameter ERROR');
+        }
+    });
+});
+
 exports.addOwner = functions.https.onRequest((req, res) => {
     if (req.method === 'PUT') {
         res.status(403).send('Forbidden!');
@@ -207,14 +240,14 @@ exports.addStay = functions.https.onRequest((req, res) => {
             })
             .then(function (result) {
                 console.log(result);
-                return addParticipantToRoom(room.id, user.id);
+                return addParticipation(room.id, user.id);
             }, function (err) {
                 console.log(err);
                 res.status(500).send('Write ERROR');
             })
             .then(function (result) {
                 console.log(result);
-                return addParticipantToRoom(room.id, owner.id);
+                return addParticipation(room.id, owner.id);
             }, function (err) {
                 console.log(err);
                 res.status(500).send('Write ERROR');
@@ -256,6 +289,21 @@ exports.getRooms = functions.https.onRequest((req, res) => {
             console.log('getRooms result ' + result);
             res.status(200).send(result);
         }, function (err) {
+            console.log(err);
+            res.status(400).send('error');
+        });
+    });
+});
+
+exports.getParticipations = functions.https.onRequest((req, res) => {
+    if (req.method === 'PUT') {
+        res.status(403).send('Forbidden!');
+    }
+    cors(req, res, () => {
+        getParticipationsForOwner(req.body.owner_id).then(result => {
+            console.log('getParticipations result ' + result);
+            res.status(200).send(result);
+        }, err => {
             console.log(err);
             res.status(400).send('error');
         });
@@ -384,7 +432,6 @@ function createMessage(id, text, date, room_id, sender_id, sender_name) {
     return message;
 }
 
-
 function currentDate() {
 	var currentDate = moment().utc().format("YYYY-MM-DDTHH:mm:ssZZ");
 	return currentDate;
@@ -424,20 +471,19 @@ function getGuestsForOwner(ownerID) {
 }
 
 function getRoomParticipants(roomID) {
-    var promise = new Promise(function (resolve, reject) {
-        var ref = getRefForRoomID(roomID).child('participants');
+    return new Promise(function (resolve, reject) {
+        var ref = getRefForRoomParticipations(roomID);
         var participants = [];
-        ref.once('value', function (snap) {
-            snap.forEach(function (child) {
+        ref.once('value', snap => {
+            snap.forEach(child => {
                participants.push(child.key);
             });
             resolve(participants);
-        }, function (err) {
+        }, err => {
             console.log('The read failed: ' + err.code);
             reject(Error(err.code));
         });
     });
-    return promise;
 }
 
 function notifyParticipants(senderID, participantIDArray, message, room) {
@@ -505,6 +551,24 @@ function getRoomsForOwner(ownerID) {
     return promise;
 }
 
+function getParticipationsForOwner(ownerID) {
+    return new Promise((resolve, reject) => {
+        var ref = getRefForOwnerID(ownerID).child('guests');
+        var rooms = [];
+        var participations = [];
+        ref.once('value', snap => {
+            snap.forEach(child => {
+                rooms.push(child.val());
+            });
+            getSetOfParticipations(rooms, ownerID, participations)
+            .then(() => resolve(participations));
+        }, err => {
+            console.log('The read failed: ' + err.code);
+            reject(Error(err.code));
+        });
+    });
+}
+
 function getSetOfRooms(arr, fetchedRooms) {
     return arr.reduce((promise, item) => {
         return promise.then((result) => {
@@ -512,6 +576,18 @@ function getSetOfRooms(arr, fetchedRooms) {
             return getRoom(item).then(result => fetchedRooms.push(result));
         }).catch(console.error);
         }, Promise.resolve());
+}
+
+function getSetOfParticipations(rooms, user_id, participations) {
+    return rooms.reduce((promise, room_id) => {
+        return promise.then((result) => {
+            return getParticipation(room_id, user_id).then(result => {
+                if (result != null) {
+                    participations.push(result);
+                }
+            });
+        }).catch(console.error);
+    }, Promise.resolve());
 }
 
 function getSetOfGuests(arr, fetchedGuests) {
@@ -549,6 +625,18 @@ function getRoom(id) {
         });
     });
     return promise;
+}
+
+function getParticipation(roomID, userID) {
+    return new Promise((resolve, reject) => {
+        var ref = getRefForRoomParticipations(roomID).child(userID);
+        ref.once('value', snap => {
+            resolve(snap.val());
+        }, err => {
+            console.log('The read failed: ' + err.code);
+            reject(Error(err.code));
+        });
+    });
 }
 
 function getMessageCountForRoom(id) {
@@ -614,19 +702,39 @@ function setRoom(room) {
     return promise;
 }
 
-function addParticipantToRoom(roomID, participantID) {
-    var promise = new Promise(function (resolve, reject) {
-        var ref = getRefForRoomID(roomID).child('participants').child(participantID);
-        ref.set({participationID: '__UNDEFINED__', userID: participantID}, function (error) {
+function setReadCount(roomID, userID, count) {
+    return new Promise((resolve, reject) => {
+        var ref = getRefForRoomParticipations(roomID).child(userID).child('read_count');
+        getRefForRoomID(roomID).child('message_count').once('value').then(snapshot => {
+            if (snapshot.val() < count) {
+                count = snapshot.val();
+            }
+            ref.set(parseInt(count), error => {
+                if (error) {
+                    reject(Error(error.code));
+                } else {
+                    resolve('ok');
+                }
+            });
+        });
+    });
+}
+
+function addParticipation(roomID, userID) {
+    return new Promise((resolve, reject) => {
+        var ref = getRefForRoomParticipations(roomID).child(userID);
+        ref.set({
+            room_id: roomID,
+            user_id: userID,
+            read_count: 0
+        }, error => {
             if (error) {
                 reject(Error(error.code));
-            }
-            else {
+            } else {
                 resolve('ok');
             }
         });
     });
-    return promise;
 }
 
 function updateRoom(message) {
@@ -778,4 +886,8 @@ function getRefForUserID(id) {
 
 function getRefForRoomMessages(roomID) {
     return getRefForMessageTable().child(roomID);
+}
+
+function getRefForRoomParticipations(roomID) {
+    return admin.database().ref('/participations').child(roomID);
 }
