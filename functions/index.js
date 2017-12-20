@@ -355,7 +355,7 @@ exports.testmethod = functions.https.onRequest((req, res) => {
     cors(req, res, () => {
         const roomID = '807048e1-2ae7-4015-bcec-abfc509291f2';
         const senderID = 'zwe85qHCEhY0PLaRIb6RtWzmeor2';
-        const message = createMessage('dfhdih', 'test msg', '2017-12-01T10:12:37+0000', roomID, senderID, 'test sender name');
+        const message = createMessage('dfhdih', 'test msgs', '2017-12-01T10:12:37+0000', roomID, senderID, 'test sender name');
         var room;
         getRoom(roomID)
         .then(function (result) {
