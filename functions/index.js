@@ -508,10 +508,6 @@ function notifySingleUser(token, message, room) {
     console.log('Notify token ' + token);
 
     var payload = {
-        /*notification: {
-            title: "Nuevo mensaje",
-            body: message.sender_name + ": " + message.text
-        },*/
         data: {
             room_id: room.id,
             property_name: room.property_name,
@@ -519,6 +515,28 @@ function notifySingleUser(token, message, room) {
             text: message.text
         }
     };
+
+    //iOS COMPLIANT
+    // var payload = {
+    //     notification: {
+    //      title: "Nuevo mensaje",
+    //      body: message.sender_name + ": " + message.text
+    //      }
+    // };
+
+    //iOS COMPLIANT
+    // var payload = {
+    //     notification: {
+    //          title: "Nuevo mensaje",
+    //          body: message.sender_name + ": " + message.text
+    //          },
+    //     data: {
+    //         room_id: room.id,
+    //         property_name: room.property_name,
+    //         sender_name: message.sender_name,
+    //         text: message.text
+    //     }
+    // };
 
     var options = {
         priority: "high",
