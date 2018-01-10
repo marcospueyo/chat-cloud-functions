@@ -175,7 +175,11 @@ exports.tokenRefresh = functions.https.onRequest((req, res) => {
     cors(req, res, () => {
        var paramsOK = req.body.id && req.body.token;
        if (paramsOK) {
-           setUserToken(req.body.id, req.body.token)
+           var platform = "any";
+           if (req.body.platform) {
+               platform = req.body.platform;
+           }
+           setUserToken(req.body.id, req.body.token, platform)
                .then(function (result) {
                console.log(result);
                res.status(200).send({message: 'Token saved'});
@@ -353,8 +357,8 @@ exports.testmethod = functions.https.onRequest((req, res) => {
         res.status(403).send('Forbidden!');
     }
     cors(req, res, () => {
-        const roomID = '807048e1-2ae7-4015-bcec-abfc509291f2';
-        const senderID = 'zwe85qHCEhY0PLaRIb6RtWzmeor2';
+        const roomID = 'c8363d9a-4437-4722-94ec-27550a81112d';
+        const senderID = 'xx';
         const message = createMessage('dfhdih', 'test msgs', '2017-12-01T10:12:37+0000', roomID, senderID, 'test sender name');
         var room;
         getRoom(roomID)
@@ -366,7 +370,7 @@ exports.testmethod = functions.https.onRequest((req, res) => {
             res.status(400).send('error');
         })
         .then(function (result) {
-            console.log(result);
+            console.log('participants ' + result);
             return notifyParticipants(senderID, result, message, room);
         }, function (err) {
             console.log(err);
@@ -486,15 +490,39 @@ function getRoomParticipants(roomID) {
     });
 }
 
+function isIterable(obj) {
+    // checks for null and undefined
+    if (obj == null) {
+        return false;
+    }
+    return typeof obj[Symbol.iterator] === 'function';
+}
+
+const ANDROID = "android";
+const IOS = "ios";
+const WEB = "web";
+
 function notifyParticipants(senderID, participantIDArray, message, room) {
     var promise = new Promise(function (resolve, reject) {
-        // participantArray.forEach
         var users = [];
         getSetOfGuests(participantIDArray, users)
             .then(function () {
                 users.forEach(function (item) {
                     if (item.hasOwnProperty('token') && item.id != senderID) {
-                        notifySingleUser(item.token, message, room);
+                        console.log('token =' + item.token);
+
+                        if (item.token.hasOwnProperty(ANDROID)) {
+                            console.log('android:', item.token.android);
+                            notifySingleUser(item.token.android, message, room, ANDROID);
+                        }
+                        if (item.token.hasOwnProperty(IOS)) {
+                            console.log('android:', item.token.ios);
+                            notifySingleUser(item.token.ios, message, room, IOS);
+                        }
+                        if (item.token.hasOwnProperty(WEB)) {
+                            console.log('android:', item.token.web);
+                            notifySingleUser(item.token.web, message, room, WEB);
+                        }
                     }
                 });
                 resolve('ok');
@@ -503,40 +531,46 @@ function notifyParticipants(senderID, participantIDArray, message, room) {
     });
     return promise;
 }
-
-function notifySingleUser(token, message, room) {
+function notifySingleUser(token, message, room, platform) {
     console.log('Notify token ' + token);
 
-    var payload = {
-        data: {
-            room_id: room.id,
-            property_name: room.property_name,
-            sender_name: message.sender_name,
-            text: message.text
-        }
-    };
+    var payload;
+    if (platform === ANDROID) {
+        payload = {
+            data: {
+                room_id: room.id,
+                property_name: room.property_name,
+                sender_name: message.sender_name,
+                text: message.text
+            }
+        };
+    }
 
-    //iOS COMPLIANT
-    // var payload = {
-    //     notification: {
-    //      title: "Nuevo mensaje",
-    //      body: message.sender_name + ": " + message.text
-    //      }
-    // };
+    else if (platform === IOS) {
+        //iOS COMPLIANT
+        // var payload = {
+        //     notification: {
+        //      title: "Nuevo mensaje",
+        //      body: message.sender_name + ": " + message.text
+        //      }
+        // };
+        payload = {
+            notification: {
+                 title: "Nuevo mensaje",
+                 body: message.sender_name + ": " + message.text
+                 },
+            data: {
+                room_id: room.id,
+                property_name: room.property_name,
+                sender_name: message.sender_name,
+                text: message.text
+            }
+        };
+    }
 
-    //iOS COMPLIANT
-    // var payload = {
-    //     notification: {
-    //          title: "Nuevo mensaje",
-    //          body: message.sender_name + ": " + message.text
-    //          },
-    //     data: {
-    //         room_id: room.id,
-    //         property_name: room.property_name,
-    //         sender_name: message.sender_name,
-    //         text: message.text
-    //     }
-    // };
+    else {
+        // Others
+    }
 
     var options = {
         priority: "high",
@@ -852,9 +886,9 @@ function setUser(user) {
     return promise;
 }
 
-function setUserToken(id, token) {
+function setUserToken(id, token, platform) {
     var promise = new Promise(function (resolve, reject) {
-        var ref = getRefForUserID(id).child('token');
+        var ref = getRefForUserID(id).child('token').child(platform);
         ref.set(token, function (error) {
            if (error) {
                reject(Error(error.code));
