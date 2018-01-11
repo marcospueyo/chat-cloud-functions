@@ -557,7 +557,8 @@ function notifySingleUser(token, message, room, platform) {
         payload = {
             notification: {
                  title: "Nuevo mensaje",
-                 body: message.sender_name + ": " + message.text
+                 body: message.sender_name + ": " + message.text,
+                  "badge": "1"
                  },
             data: {
                 room_id: room.id,
